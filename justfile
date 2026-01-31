@@ -1,3 +1,5 @@
+set shell := ["powershell", "-Command"]
+
 install:
 	uv sync --frozen
 
