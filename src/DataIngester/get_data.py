@@ -1,28 +1,26 @@
 """This module is responsible for ingesting data from the FPL API."""
 
-from typing import List
-import json
+from typing import List, Sequence
 import requests
 import asyncio
 import aiohttp
 
-import polars as pl
 
 FPL_BASE_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 PLAYER_URL = "https://fantasy.premierleague.com/api/element-summary/{player_id}/"
 
 
-def fetch_static_data() -> json:
+def fetch_static_data() -> dict:
     """Fetches static data from the FPL API.
 
     Returns:
-        json: JSON object containing static data.
+        dict: Dictionary containing static data.
     """
     data = requests.get(FPL_BASE_URL)
     return data.json()
 
 
-async def fetch_player_data(session: aiohttp.ClientSession, player_id: int) -> dict:
+async def fetch_player_data(session: aiohttp.ClientSession, player_id: int) -> tuple[int, dict]:
     """Fetches individual player data from the FPL API.
 
     Args:
@@ -37,7 +35,7 @@ async def fetch_player_data(session: aiohttp.ClientSession, player_id: int) -> d
         return player_id, data
 
 
-async def fetch_all_players_data(player_ids: List[int], concurrency: int = 20) -> List[dict]:
+async def fetch_all_players_data(player_ids: List[int], concurrency: int = 20) -> Sequence[tuple[int, dict]]:
     """Fetches data for all players asynchronously.
 
     Args:
@@ -45,9 +43,9 @@ async def fetch_all_players_data(player_ids: List[int], concurrency: int = 20) -
         concurrency (int): Number of concurrent requests to make. Default is 20.
 
     Returns:
-        List[dict]: List of dictionaries containing player data.
+        Sequence[tuple[int, dict]]: Sequence of tuples containing player IDs and their corresponding data.
     """
     connector = aiohttp.TCPConnector(limit=concurrency)
     async with aiohttp.ClientSession(connector=connector) as session:
         tasks = [fetch_player_data(session, player_id) for player_id in player_ids]
-        return await asyncio.gather(*tasks, return_exceptions=True)
+        return await asyncio.gather(*tasks)
