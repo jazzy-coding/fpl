@@ -6,7 +6,10 @@ install:
 lint:
 	uv run ruff check .
 
+format:
+	uv run black .
+
 test:
 	uv run pytest -vv --cov=tests tests
 
-ci: install lint test
+ci: install lint format test
