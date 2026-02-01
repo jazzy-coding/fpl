@@ -2,7 +2,6 @@
 
 import numpy as np
 import pymc as pm
-import pytensor.tensor as pt
 
 def fit_gk_model(
     goals,
