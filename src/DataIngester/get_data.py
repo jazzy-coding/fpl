@@ -5,7 +5,6 @@ import requests
 import asyncio
 import aiohttp
 
-
 FPL_BASE_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 PLAYER_URL = "https://fantasy.premierleague.com/api/element-summary/{player_id}/"
 
@@ -20,7 +19,9 @@ def fetch_static_data() -> dict:
     return data.json()
 
 
-async def fetch_player_data(session: aiohttp.ClientSession, player_id: int) -> tuple[int, dict]:
+async def fetch_player_data(
+    session: aiohttp.ClientSession, player_id: int
+) -> tuple[int, dict]:
     """Fetches individual player data from the FPL API.
 
     Args:
@@ -35,7 +36,9 @@ async def fetch_player_data(session: aiohttp.ClientSession, player_id: int) -> t
         return player_id, data
 
 
-async def fetch_all_players_data(player_ids: List[int], concurrency: int = 20) -> Sequence[tuple[int, dict]]:
+async def fetch_all_players_data(
+    player_ids: List[int], concurrency: int = 20
+) -> Sequence[tuple[int, dict]]:
     """Fetches data for all players asynchronously.
 
     Args:
