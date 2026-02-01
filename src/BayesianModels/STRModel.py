@@ -2,18 +2,35 @@
 
 import numpy as np
 import pymc as pm
+import arviz as az
 
 def fit_str_model(
-    goals,
-    assists,
-    defensive_contributions,
-    minutes,
-    goals_conceded,
-    yellow_cards,
-    red_cards,
-    n_strikers,
-    player_idx
-):
+    goals: np.ndarray,
+    assists: np.ndarray,
+    defensive_contributions: np.ndarray,
+    minutes: np.ndarray,
+    goals_conceded: np.ndarray,
+    yellow_cards: np.ndarray,
+    red_cards: np.ndarray,
+    n_strikers: int,
+    player_idx: int
+) -> az.InferenceData:
+  """Fit a Bayesian model for strikers using PyMC.
+  
+    Args:
+        goals (np.ndarray): Array of goals scored by each striker.
+        assists (np.ndarray): Array of assists made by each striker.
+        defensive_contributions (np.ndarray): Array of defensive contributions by each striker.
+        minutes (np.ndarray): Array of minutes played by each striker.
+        goals_conceded (np.ndarray): Array of goals conceded by each striker.
+        yellow_cards (np.ndarray): Array of yellow cards received by each striker.
+        red_cards (np.ndarray): Array of red cards received by each striker.
+        n_strikers (int): Number of strikers in the dataset.
+        player_idx (int): Index array mapping observations to strikers.
+
+    Returns:
+        az.InferenceData: The trace of the fitted model.
+  """
 
   with pm.Model() as str_model:
 
