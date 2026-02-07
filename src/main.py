@@ -217,9 +217,8 @@ def main() -> None:
 
     mc_df = pl.DataFrame(rows)
 
-    mc_df.filter(pl.col("position") == "Goalkeeper").sort(
-        "mean_points", descending=True
-    ).head(20)
+    mc_df.write_csv("fpl_points_simulation_results.csv")
+    print("Simulation results saved to fpl_points_simulation_results.csv")
 
 
 if __name__ == "__main__":
