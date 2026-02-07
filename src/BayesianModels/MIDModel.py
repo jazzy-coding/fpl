@@ -14,7 +14,7 @@ def fit_mid_model(
     yellow_cards: np.ndarray,
     red_cards: np.ndarray,
     n_midfielders: int,
-    player_idx: int,
+    player_idx: np.ndarray,
 ) -> az.InferenceData:
     """Fit a Bayesian model for midfielders using PyMC.
 
@@ -27,7 +27,7 @@ def fit_mid_model(
         yellow_cards (np.ndarray): Array of yellow cards received by each midfielder.
         red_cards (np.ndarray): Array of red cards received by each midfielder.
         n_midfielders (int): Number of midfielders in the dataset.
-        player_idx (int): Index array mapping observations to midfielders.
+        player_idx (np.ndarray): Index array mapping observations to midfielders.
 
     Returns:
         az.InferenceData: The trace of the fitted model.

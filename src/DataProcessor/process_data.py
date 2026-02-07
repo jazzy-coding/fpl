@@ -45,7 +45,7 @@ def extract_player_ids_data(static_data: dict) -> pl.DataFrame:
     return pl.DataFrame(player_info)
 
 
-def extract_detailed_player_data(player_ids: List[int]) -> Sequence[tuple[int, dict]]:
+def extract_detailed_player_data(player_ids: List[int]) -> List[tuple]:
     """Run `fetch_all_players_data` safely from sync code and return a pl.DataFrame.
 
     Ensures the coroutine runs either with `asyncio.run()` or inside a fresh thread+loop
@@ -56,7 +56,7 @@ def extract_detailed_player_data(player_ids: List[int]) -> Sequence[tuple[int, d
         player_ids (List[int]): List of player IDs to fetch data for.
 
     Returns:
-        dict[int, dict]: Dictionary mapping player IDs to their corresponding data.
+        List[tuple]: List of tuples containing player IDs and their corresponding data.
     """
     coro = fetch_all_players_data(player_ids)
 
@@ -133,11 +133,11 @@ def unpack_upcoming_fixtures(data: List[tuple[int, dict]]) -> List[dict]:
     return rows
 
 
-def unpack_played_fixtures(data: List[tuple[int, dict]]) -> List[dict]:
+def unpack_played_fixtures(data: List[tuple]) -> List[dict]:
     """Unpack played fixtures from player data.
 
     Args:
-        data (List[tuple[int, dict]]): List of tuples containing player IDs and their corresponding data.
+        data (List[tuple]): List of tuples containing player IDs and their corresponding data.
 
     Returns:
         List[dict]: List of dictionaries containing unpacked played fixture data.

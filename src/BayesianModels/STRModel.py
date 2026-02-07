@@ -14,7 +14,7 @@ def fit_str_model(
     yellow_cards: np.ndarray,
     red_cards: np.ndarray,
     n_strikers: int,
-    player_idx: int,
+    player_idx: np.ndarray,
 ) -> az.InferenceData:
     """Fit a Bayesian model for strikers using PyMC.
 
@@ -27,7 +27,7 @@ def fit_str_model(
         yellow_cards (np.ndarray): Array of yellow cards received by each striker.
         red_cards (np.ndarray): Array of red cards received by each striker.
         n_strikers (int): Number of strikers in the dataset.
-        player_idx (int): Index array mapping observations to strikers.
+        player_idx (np.ndarray): Index array mapping observations to strikers.
 
     Returns:
         az.InferenceData: The trace of the fitted model.
