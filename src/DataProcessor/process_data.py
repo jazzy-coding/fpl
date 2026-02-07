@@ -94,7 +94,7 @@ def extract_player_position_mapping(static_data: dict) -> dict[str, str]:
     }
 
 
-def extract_upcoming_fixtures(static_data: dict) -> pl.DataFrame:
+def extract_upcoming_fixtures(static_data: dict) -> dict:
     """Extract upcoming fixtures from static FPL data.
 
     Args:
@@ -103,7 +103,7 @@ def extract_upcoming_fixtures(static_data: dict) -> pl.DataFrame:
     Returns:
         pl.DataFrame: Processed DataFrame containing upcoming fixtures.
     """
-    return pl.DataFrame(static_data["elements"])
+    return static_data["elements"]
 
 
 def unpack_upcoming_fixtures(data: List[tuple[int, dict]]) -> List[dict]:
@@ -262,6 +262,33 @@ def preprocess_match_data(matches_df: pl.DataFrame, player_ids_df: pl.DataFrame,
     # unfinished - continue from here
 
     return matches_df
+
+
+def make_player_positions_df(static_data: dict, position_map: dict) -> pl.DataFrame:
+    """Create a DataFrame mapping player IDs to their positions.
+
+    Args:
+        static_data (dict): The static FPL data containing player information.
+        position_map (dict): Mapping of element types to position names.
+
+    Returns:
+        pl.DataFrame: DataFrame containing player IDs and their corresponding positions.
+    """
+    player_position_map = {element["id"]: position_map[element["element_type"]] for element in static_data['elements']}
+
+    # Convert the dictionary to the correct format for pl.from_dict
+    positions_df = pl.from_dict(
+        data={
+            "player_id": list(player_position_map.keys()),
+            "position": list(player_position_map.values())
+        },
+        schema={
+            "player_id": pl.Int64,
+            "position": pl.Utf8
+        }
+    )
+
+    return positions_df
 
 
 def run_full_player_processing() -> pl.DataFrame:
