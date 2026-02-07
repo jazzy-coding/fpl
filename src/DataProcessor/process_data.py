@@ -1,4 +1,5 @@
 """Module responsible for processing FPL data."""
+
 from typing import List, Sequence
 import asyncio
 from collections import defaultdict
@@ -6,15 +7,14 @@ from collections import defaultdict
 import polars as pl
 import numpy as np
 
-from src.DataIngester.get_data import fetch_all_players_data, fetch_static_data, PLAYER_URL
+from src.DataIngester.get_data import (
+    fetch_all_players_data,
+    fetch_static_data,
+    PLAYER_URL,
+)
 
-FDR_MULTIPLIER_MAP = {
-    1: 1.2,
-    2: 1.1,
-    3: 1.0,
-    4: 0.9,
-    5: 0.8
-}
+FDR_MULTIPLIER_MAP = {1: 1.2, 2: 1.1, 3: 1.0, 4: 0.9, 5: 0.8}
+
 
 def extract_teams_data(static_data: dict) -> pl.DataFrame:
     """Extract teams data from static FPL data.
@@ -38,10 +38,14 @@ def extract_player_ids_data(static_data: dict) -> pl.DataFrame:
         pl.DataFrame: Processed DataFrame containing player IDs and names.
     """
     player_info = [
-        {"id": player["id"], "first_name": player["first_name"], "last_name": player["web_name"]}
+        {
+            "id": player["id"],
+            "first_name": player["first_name"],
+            "last_name": player["web_name"],
+        }
         for player in static_data["elements"]
     ]
-    
+
     return pl.DataFrame(player_info)
 
 
@@ -125,10 +129,7 @@ def unpack_upcoming_fixtures(data: List[tuple[int, dict]]) -> List[dict]:
             fixtures = payload.get("fixtures", [])
 
             for fixture in fixtures:
-                rows.append({
-                    "player_id": player_id,
-                    **fixture
-                })
+                rows.append({"player_id": player_id, **fixture})
 
     return rows
 
@@ -149,15 +150,17 @@ def unpack_played_fixtures(data: List[tuple]) -> List[dict]:
             matches = payload.get("history", [])
 
             for match_ in matches:
-                rows.append({
-                    "player_id": player_id,
-                    **match_
-                })
+                rows.append({"player_id": player_id, **match_})
 
     return rows
 
 
-def calculate_fdr(upcoming_df: pl.DataFrame, player_name_map: dict, fdr_multiplier_map: dict, n_weeks: int = 5) -> dict:
+def calculate_fdr(
+    upcoming_df: pl.DataFrame,
+    player_name_map: dict,
+    fdr_multiplier_map: dict,
+    n_weeks: int = 5,
+) -> dict:
     """Calculate Fixture Difficulty Ratings (FDR) for players.
 
     Args:
@@ -180,7 +183,7 @@ def calculate_fdr(upcoming_df: pl.DataFrame, player_name_map: dict, fdr_multipli
         fdr_dict[player_id] = {
             "name": player_name_map.get(player_id, "Unknown"),
             "difficulties": list(next_n_difficulties),
-            "multipliers": [fdr_multiplier_map[d] for d in next_n_difficulties]
+            "multipliers": [fdr_multiplier_map[d] for d in next_n_difficulties],
         }
 
     return fdr_dict
@@ -196,13 +199,18 @@ def extract_player_name_map(player_ids_df: pl.DataFrame) -> dict:
         dict: Mapping of player IDs to player names.
     """
     player_name_map = {
-    row["id"]: f"{row['first_name']} {row['last_name']}"
-    for row in player_ids_df.select(["id", "first_name", "last_name"]).to_dicts()
+        row["id"]: f"{row['first_name']} {row['last_name']}"
+        for row in player_ids_df.select(["id", "first_name", "last_name"]).to_dicts()
     }
     return player_name_map
 
 
-def preprocess_match_data(matches_df: pl.DataFrame, player_ids_df: pl.DataFrame, teams_df: pl.DataFrame, gw_played: int) -> pl.DataFrame:
+def preprocess_match_data(
+    matches_df: pl.DataFrame,
+    player_ids_df: pl.DataFrame,
+    teams_df: pl.DataFrame,
+    gw_played: int,
+) -> pl.DataFrame:
     """Preprocess match data by selecting relevant columns and renaming them.
 
     Args:
@@ -215,52 +223,46 @@ def preprocess_match_data(matches_df: pl.DataFrame, player_ids_df: pl.DataFrame,
         pl.DataFrame: Preprocessed DataFrame with selected and renamed columns.
     """
     matches_df = matches_df.join(
-              player_ids_df.select([
-                  pl.col('id').alias('player_id'),
-                  pl.col('first_name'),
-                  pl.col('last_name')
-              ]),
-              on='player_id',
-              how='left'
-            )
-    
-    matches_df = matches_df.join(
-                teams_df.select([
-                pl.col('id').alias('opponent_team'),
-                pl.col('name').alias('opponent_team_name')
-            ]),
-                on='opponent_team',
-                how='left'
-            )
-    
-    matches_df = matches_df.with_columns([
-                pl.col('kickoff_time').cast(pl.Datetime),
-                pl.col('influence').cast(pl.Float64),
-                pl.col('creativity').cast(pl.Float64),
-                pl.col('threat').cast(pl.Float64),
-                pl.col('ict_index').cast(pl.Float64),
-                pl.col('expected_goals').cast(pl.Float64),
-                pl.col('expected_assists').cast(pl.Float64),
-                pl.col('expected_goal_involvements').cast(pl.Float64),
-                pl.col('expected_goals_conceded').cast(pl.Float64),
-            ])
-    
-    matches_df = matches_df.with_columns([
-                pl.col('value') / 10
-            ])
-    
-    counts = (
-        matches_df
-        .group_by("player_id")
-        .agg(pl.len().alias("n_matches"))
+        player_ids_df.select(
+            [pl.col("id").alias("player_id"), pl.col("first_name"), pl.col("last_name")]
+        ),
+        on="player_id",
+        how="left",
     )
+
+    matches_df = matches_df.join(
+        teams_df.select(
+            [
+                pl.col("id").alias("opponent_team"),
+                pl.col("name").alias("opponent_team_name"),
+            ]
+        ),
+        on="opponent_team",
+        how="left",
+    )
+
+    matches_df = matches_df.with_columns(
+        [
+            pl.col("kickoff_time").cast(pl.Datetime),
+            pl.col("influence").cast(pl.Float64),
+            pl.col("creativity").cast(pl.Float64),
+            pl.col("threat").cast(pl.Float64),
+            pl.col("ict_index").cast(pl.Float64),
+            pl.col("expected_goals").cast(pl.Float64),
+            pl.col("expected_assists").cast(pl.Float64),
+            pl.col("expected_goal_involvements").cast(pl.Float64),
+            pl.col("expected_goals_conceded").cast(pl.Float64),
+        ]
+    )
+
+    matches_df = matches_df.with_columns([pl.col("value") / 10])
+
+    counts = matches_df.group_by("player_id").agg(pl.len().alias("n_matches"))
 
     valid_players = counts.filter(pl.col("n_matches") >= gw_played)
 
     matches_df = matches_df.join(
-        valid_players.select("player_id"),
-        on="player_id",
-        how="inner"
+        valid_players.select("player_id"), on="player_id", how="inner"
     )
     # unfinished - continue from here
 
@@ -277,7 +279,10 @@ def make_player_position_map(static_data: dict, position_map: dict) -> dict[int,
     Returns:
         dict[int, str]: Mapping of player IDs to their corresponding positions.
     """
-    player_position_map = {element["id"]: position_map[element["element_type"]] for element in static_data['elements']}
+    player_position_map = {
+        element["id"]: position_map[element["element_type"]]
+        for element in static_data["elements"]
+    }
     return player_position_map
 
 
@@ -297,18 +302,17 @@ def make_player_positions_df(static_data: dict, position_map: dict) -> pl.DataFr
     positions_df = pl.from_dict(
         data={
             "player_id": list(player_position_map.keys()),
-            "position": list(player_position_map.values())
+            "position": list(player_position_map.values()),
         },
-        schema={
-            "player_id": pl.Int64,
-            "position": pl.Utf8
-        }
+        schema={"player_id": pl.Int64, "position": pl.Utf8},
     )
 
     return positions_df
 
 
-def make_position_to_player_ids_list_map(player_position_map: dict) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
+def make_position_to_player_ids_list_map(
+    player_position_map: dict,
+) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
     """Create a mapping of positions to lists of player IDs.
 
     Args:
@@ -338,7 +342,9 @@ def make_position_to_player_ids_list_map(player_position_map: dict) -> tuple[dic
     return gk_idx_map, def_idx_map, mid_idx_map, fwd_idx_map
 
 
-def filter_matches_by_position(matches_df: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+def filter_matches_by_position(
+    matches_df: pl.DataFrame,
+) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """Filter matches DataFrame by player positions.
 
     Args:
@@ -356,11 +362,11 @@ def filter_matches_by_position(matches_df: pl.DataFrame) -> tuple[pl.DataFrame, 
 
 
 def ensure_unique(
-        gk_data: pl.DataFrame, 
-        def_data: pl.DataFrame, 
-        mid_data: pl.DataFrame, 
-        str_data: pl.DataFrame
-        ) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
+    gk_data: pl.DataFrame,
+    def_data: pl.DataFrame,
+    mid_data: pl.DataFrame,
+    str_data: pl.DataFrame,
+) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
     """Ensure that player IDs are unique within each position DataFrame and create index mappings.
 
     Args:
@@ -388,7 +394,9 @@ def ensure_unique(
     return gk_idx_map, def_idx_map, mid_idx_map, str_idx_map
 
 
-def return_final_position_indices(index_map: dict[int, int], positional_data: pl.DataFrame) -> np.ndarray:
+def return_final_position_indices(
+    index_map: dict[int, int], positional_data: pl.DataFrame
+) -> np.ndarray:
     """Return a DataFrame with player IDs and their corresponding position indices.
 
     Args:
@@ -398,10 +406,14 @@ def return_final_position_indices(index_map: dict[int, int], positional_data: pl
     Returns:
         np.ndarray: Array containing player IDs and their corresponding position indices.
     """
-    return np.array([index_map[int(pid)] for pid in positional_data["player_id"].to_list()])
+    return np.array(
+        [index_map[int(pid)] for pid in positional_data["player_id"].to_list()]
+    )
 
 
-def prepare_obs_arrays(df: pl.DataFrame, idx_map: dict[int, int]) -> dict[str, np.ndarray]:
+def prepare_obs_arrays(
+    df: pl.DataFrame, idx_map: dict[int, int]
+) -> dict[str, np.ndarray]:
     """Prepare observed data arrays for model training.
 
     Args:
@@ -436,37 +448,44 @@ def prepare_obs_arrays(df: pl.DataFrame, idx_map: dict[int, int]) -> dict[str, n
         "gc": gc,
         "yc": yc,
         "rc": rc,
-        "saves": saves
+        "saves": saves,
     }
 
 
-def compute_minutes_beta_params(df: pl.DataFrame) -> dict[int, tuple[int, int, int, int]]:
+def compute_minutes_beta_params(
+    df: pl.DataFrame,
+) -> dict[int, tuple[int, int, int, int]]:
     """Compute Beta distribution parameters for minutes played for each player.
 
     Args:
         df: Polars DataFrame filtered for a single position
-    
-    Returns: 
+
+    Returns:
         dict: player_id -> (alpha_0, beta_0, alpha_60, beta_60)
     """
     params = {}
 
-    for row in df.group_by("player_id").agg([
-        pl.col("minutes").count().alias("games_played"),
-        (pl.col("minutes") > 0).sum().alias("games_played_gt0"),
-        (pl.col("minutes") >= 60).sum().alias("games_played_ge60")
-    ]).to_dicts():
+    for row in (
+        df.group_by("player_id")
+        .agg(
+            [
+                pl.col("minutes").count().alias("games_played"),
+                (pl.col("minutes") > 0).sum().alias("games_played_gt0"),
+                (pl.col("minutes") >= 60).sum().alias("games_played_ge60"),
+            ]
+        )
+        .to_dicts()
+    ):
         pid = row["player_id"]
 
         # Beta prior for appearing at all
         alpha_0 = row["games_played_gt0"] + 1
-        beta_0  = (row["games_played"] - row["games_played_gt0"]) + 1
+        beta_0 = (row["games_played"] - row["games_played_gt0"]) + 1
 
         # Beta prior for >=60 mins conditional on playing
         alpha_60 = row["games_played_ge60"] + 1
-        beta_60  = (row["games_played_gt0"] - row["games_played_ge60"]) + 1
+        beta_60 = (row["games_played_gt0"] - row["games_played_ge60"]) + 1
 
         params[pid] = (alpha_0, beta_0, alpha_60, beta_60)
 
     return params
-
