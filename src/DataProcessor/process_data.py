@@ -336,3 +336,51 @@ def make_position_to_player_ids_list_map(player_position_map: dict) -> tuple[dic
     return gk_idx_map, def_idx_map, mid_idx_map, fwd_idx_map
 
 
+def filter_matches_by_position(matches_df: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+    """Filter matches DataFrame by player positions.
+
+    Args:
+        matches_df (pl.DataFrame): DataFrame containing match data with player positions.
+
+    Returns:
+        tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]: Tuple of DataFrames filtered by position (GK, DEF, MID, FWD).
+    """
+    gk_matches = matches_df.filter(pl.col("position") == "Goalkeeper")
+    def_matches = matches_df.filter(pl.col("position") == "Defender")
+    mid_matches = matches_df.filter(pl.col("position") == "Midfielder")
+    fwd_matches = matches_df.filter(pl.col("position") == "Forward")
+
+    return gk_matches, def_matches, mid_matches, fwd_matches
+
+
+def ensure_unique(
+        gk_data: pl.DataFrame, 
+        def_data: pl.DataFrame, 
+        mid_data: pl.DataFrame, 
+        str_data: pl.DataFrame
+        ) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
+    """Ensure that player IDs are unique within each position DataFrame and create index mappings.
+
+    Args:
+        gk_data (pl.DataFrame): DataFrame containing goalkeeper match data.
+        def_data (pl.DataFrame): DataFrame containing defender match data.
+        mid_data (pl.DataFrame): DataFrame containing midfielder match data.
+        str_data (pl.DataFrame): DataFrame containing forward match data.
+
+    Returns:
+        tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]: Tuple of index mappings for each position.
+    """
+    # Only unique player_ids in positions
+    gk_player_ids = gk_data["player_id"].unique().to_list()
+    gk_idx_map = {pid: i for i, pid in enumerate(gk_player_ids)}
+
+    def_player_ids = def_data["player_id"].unique().to_list()
+    def_idx_map = {pid: i for i, pid in enumerate(def_player_ids)}
+
+    mid_player_ids = mid_data["player_id"].unique().to_list()
+    mid_idx_map = {pid: i for i, pid in enumerate(mid_player_ids)}
+
+    str_player_ids = str_data["player_id"].unique().to_list()
+    str_idx_map = {pid: i for i, pid in enumerate(str_player_ids)}
+
+    return gk_idx_map, def_idx_map, mid_idx_map, str_idx_map
