@@ -43,15 +43,27 @@ def extract_player_ids_data(static_data: dict) -> pl.DataFrame:
 
 
 def extract_detailed_player_data(player_ids: List[int]) -> pl.DataFrame:
-    """Extract detailed player data for given player IDs.
+    """Run `fetch_all_players_data` safely from sync code.
 
-    Args:
-        player_ids (List[int]): List of player IDs to fetch detailed data for.
-
-    Returns:
-        pl.DataFrame: Processed DataFrame containing detailed player data.
+    Tries `asyncio.run()` (normal scripts). If an event loop is already running
+    (e.g. embedded environments), runs the coroutine inside a fresh thread+loop.
     """
-    data = asyncio.run(fetch_all_players_data(player_ids))
+    try:
+        data = asyncio.run(fetch_all_players_data(player_ids))
+    except RuntimeError as e:
+        if "asyncio.run() cannot be called from a running event loop" in str(e):
+            import concurrent.futures
+            def _run_in_thread(ids):
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    return loop.run_until_complete(fetch_all_players_data(ids))
+                finally:
+                    loop.close()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                data = ex.submit(_run_in_thread, player_ids).result()
+        else:
+            raise
     return pl.DataFrame(data)
 
 
