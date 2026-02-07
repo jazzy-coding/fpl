@@ -43,28 +43,58 @@ def extract_player_ids_data(static_data: dict) -> pl.DataFrame:
 
 
 def extract_detailed_player_data(player_ids: List[int]) -> pl.DataFrame:
-    """Run `fetch_all_players_data` safely from sync code.
+    """Run `fetch_all_players_data` safely from sync code and return a pl.DataFrame.
 
-    Tries `asyncio.run()` (normal scripts). If an event loop is already running
-    (e.g. embedded environments), runs the coroutine inside a fresh thread+loop.
+    Ensures the coroutine runs either with `asyncio.run()` or inside a fresh thread+loop
+    if an event loop is already running. Normalizes returned data into a list of
+    dict rows so Polars doesn't interpret tuples as columns.
     """
+    coro = fetch_all_players_data(player_ids)
+
     try:
-        data = asyncio.run(fetch_all_players_data(player_ids))
-    except RuntimeError as e:
-        if "asyncio.run() cannot be called from a running event loop" in str(e):
-            import concurrent.futures
-            def _run_in_thread(ids):
-                loop = asyncio.new_event_loop()
-                try:
-                    asyncio.set_event_loop(loop)
-                    return loop.run_until_complete(fetch_all_players_data(ids))
-                finally:
-                    loop.close()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                data = ex.submit(_run_in_thread, player_ids).result()
-        else:
-            raise
-    return pl.DataFrame(data)
+        # If there's no running loop, this runs the coroutine normally.
+        data = asyncio.run(coro)
+    except RuntimeError:
+        # Running inside an existing loop (e.g. notebook, embedded). Run in a thread.
+        import concurrent.futures
+
+        def _run_in_thread(ids):
+            loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(loop)
+                return loop.run_until_complete(fetch_all_players_data(ids))
+            finally:
+                loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            data = ex.submit(_run_in_thread, player_ids).result()
+
+    # Normalize returned data into list[dict] rows:
+    rows = []
+    if isinstance(data, dict):
+        # mapping id -> payload
+        for pid, payload in data.items():
+            if isinstance(payload, dict):
+                rows.append({"player_id": pid, **payload})
+            else:
+                rows.append({"player_id": pid, "payload": payload})
+    elif isinstance(data, (list, tuple)):
+        for item in data:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                pid, payload = item
+                if isinstance(payload, dict):
+                    rows.append({"player_id": pid, **payload})
+                else:
+                    rows.append({"player_id": pid, "payload": payload})
+            elif isinstance(item, dict):
+                rows.append(item)
+            else:
+                rows.append({"value": item})
+    else:
+        rows = [{"value": data}]
+
+    # Let Polars accept mixed types to avoid strict-type construction errors.
+    return pl.DataFrame(rows, strict=False)
 
 
 def extract_player_position_mapping(static_data: dict) -> dict[str, str]:
