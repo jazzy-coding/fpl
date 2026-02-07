@@ -69,32 +69,7 @@ def extract_detailed_player_data(player_ids: List[int]) -> pl.DataFrame:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
             data = ex.submit(_run_in_thread, player_ids).result()
 
-    # Normalize returned data into list[dict] rows:
-    rows = []
-    if isinstance(data, dict):
-        # mapping id -> payload
-        for pid, payload in data.items():
-            if isinstance(payload, dict):
-                rows.append({"player_id": pid, **payload})
-            else:
-                rows.append({"player_id": pid, "payload": payload})
-    elif isinstance(data, (list, tuple)):
-        for item in data:
-            if isinstance(item, (list, tuple)) and len(item) == 2:
-                pid, payload = item
-                if isinstance(payload, dict):
-                    rows.append({"player_id": pid, **payload})
-                else:
-                    rows.append({"player_id": pid, "payload": payload})
-            elif isinstance(item, dict):
-                rows.append(item)
-            else:
-                rows.append({"value": item})
-    else:
-        rows = [{"value": data}]
-
-    # Let Polars accept mixed types to avoid strict-type construction errors.
-    return pl.DataFrame(rows, strict=False)
+    return pl.DataFrame(data['history'], strict=False)
 
 
 def extract_player_position_mapping(static_data: dict) -> dict[str, str]:
