@@ -1,6 +1,7 @@
 """Module responsible for processing FPL data."""
 from typing import List, Sequence
 import asyncio
+from collections import defaultdict
 import polars as pl
 
 from src.DataIngester.get_data import fetch_all_players_data, fetch_static_data, PLAYER_URL
@@ -291,25 +292,47 @@ def make_player_positions_df(static_data: dict, position_map: dict) -> pl.DataFr
     return positions_df
 
 
-def run_full_player_processing() -> pl.DataFrame:
-    """Run the full player data processing pipeline.
+def make_player_position_mapping(static_data: dict, position_map: dict) -> dict[int, str]:
+    """Create a mapping of player IDs to their positions.
+
+    Args:
+        static_data (dict): The static FPL data containing player information.
+        position_map (dict): Mapping of element types to position names.
 
     Returns:
-        pl.DataFrame: Final processed DataFrame containing player data.
+        dict[int, str]: Mapping of player IDs to their corresponding positions.
     """
-    static_data = fetch_static_data()
-    teams_df = extract_teams_data(static_data)
-    player_ids_df = extract_player_ids_data(static_data)
-    player_name_map = extract_player_name_map(player_ids_df)
-    upcoming_fixtures_df = extract_upcoming_fixtures(static_data)
-    fdr_dict = calculate_fdr(upcoming_fixtures_df, player_name_map, FDR_MULTIPLIER_MAP)
+    player_position_map = {element["id"]: position_map[element["element_type"]] for element in static_data['elements']}
+    return player_position_map
 
-    player_ids = player_ids_df["id"].to_list()
-    detailed_player_data_df = extract_detailed_player_data(player_ids)
 
-    played_fixtures_data = unpack_played_fixtures([(row["player_id"], row) for row in detailed_player_data_df.select(["player_id", "history"]).to_dicts()])
-    played_fixtures_df = pl.DataFrame(played_fixtures_data)
+def make_position_to_player_ids_list_map(player_position_map: dict) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
+    """Create a mapping of positions to lists of player IDs.
 
-    preprocessed_matches_df = preprocess_match_data(played_fixtures_df, player_ids_df, teams_df, gw_played=5)
+    Args:
+        player_position_map (dict): Mapping of player IDs to their positions.
 
-    return preprocessed_matches_df
+    Returns:
+        tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]: Tuple of mappings of positions to lists of player IDs.
+    """
+    # Create a dict of position -> list of player IDs
+    players_by_position = defaultdict(list)
+
+    for pid, pos in player_position_map.items():
+        players_by_position[pos].append(pid)
+
+    # This creates a mapping: player_id -> row index for hierarchical model
+    idx_map_by_position = {}
+
+    for pos, pid_list in players_by_position.items():
+        idx_map = {pid: i for i, pid in enumerate(pid_list)}
+        idx_map_by_position[pos] = idx_map
+
+    gk_idx_map = idx_map_by_position["Goalkeeper"]
+    def_idx_map = idx_map_by_position["Defender"]
+    mid_idx_map = idx_map_by_position["Midfielder"]
+    fwd_idx_map = idx_map_by_position["Forward"]
+
+    return gk_idx_map, def_idx_map, mid_idx_map, fwd_idx_map
+
+
