@@ -31,7 +31,7 @@ async def fetch_player_data(
     Returns:
         dict: Dictionary containing player data.
     """
-    async with session.get(PLAYER_URL.format(playerID=player_id)) as response:
+    async with session.get(PLAYER_URL.format(player_id=player_id)) as response:
         data = await response.json()
         return player_id, data
 
