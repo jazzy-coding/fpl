@@ -42,12 +42,18 @@ def extract_player_ids_data(static_data: dict) -> pl.DataFrame:
     return pl.DataFrame(player_info)
 
 
-def extract_detailed_player_data(player_ids: List[int]) -> pl.DataFrame:
+def extract_detailed_player_data(player_ids: List[int]) -> dict[int, dict]:
     """Run `fetch_all_players_data` safely from sync code and return a pl.DataFrame.
 
     Ensures the coroutine runs either with `asyncio.run()` or inside a fresh thread+loop
     if an event loop is already running. Normalizes returned data into a list of
     dict rows so Polars doesn't interpret tuples as columns.
+
+    Args:
+        player_ids (List[int]): List of player IDs to fetch data for.
+
+    Returns:
+        dict[int, dict]: Dictionary mapping player IDs to their corresponding data.
     """
     coro = fetch_all_players_data(player_ids)
 
@@ -69,7 +75,7 @@ def extract_detailed_player_data(player_ids: List[int]) -> pl.DataFrame:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
             data = ex.submit(_run_in_thread, player_ids).result()
 
-    return pl.DataFrame(data['history'], strict=False)
+    return data
 
 
 def extract_player_position_mapping(static_data: dict) -> dict[str, str]:
