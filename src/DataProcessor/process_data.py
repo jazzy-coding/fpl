@@ -265,6 +265,20 @@ def preprocess_match_data(matches_df: pl.DataFrame, player_ids_df: pl.DataFrame,
     return matches_df
 
 
+def make_player_position_map(static_data: dict, position_map: dict) -> dict[int, str]:
+    """Create a mapping of player IDs to their positions.
+
+    Args:
+        static_data (dict): The static FPL data containing player information.
+        position_map (dict): Mapping of element types to position names.
+
+    Returns:
+        dict[int, str]: Mapping of player IDs to their corresponding positions.
+    """
+    player_position_map = {element["id"]: position_map[element["element_type"]] for element in static_data['elements']}
+    return player_position_map
+
+
 def make_player_positions_df(static_data: dict, position_map: dict) -> pl.DataFrame:
     """Create a DataFrame mapping player IDs to their positions.
 
@@ -275,7 +289,7 @@ def make_player_positions_df(static_data: dict, position_map: dict) -> pl.DataFr
     Returns:
         pl.DataFrame: DataFrame containing player IDs and their corresponding positions.
     """
-    player_position_map = {element["id"]: position_map[element["element_type"]] for element in static_data['elements']}
+    player_position_map = make_player_position_map(static_data, position_map)
 
     # Convert the dictionary to the correct format for pl.from_dict
     positions_df = pl.from_dict(
@@ -290,20 +304,6 @@ def make_player_positions_df(static_data: dict, position_map: dict) -> pl.DataFr
     )
 
     return positions_df
-
-
-def make_player_position_mapping(static_data: dict, position_map: dict) -> dict[int, str]:
-    """Create a mapping of player IDs to their positions.
-
-    Args:
-        static_data (dict): The static FPL data containing player information.
-        position_map (dict): Mapping of element types to position names.
-
-    Returns:
-        dict[int, str]: Mapping of player IDs to their corresponding positions.
-    """
-    player_position_map = {element["id"]: position_map[element["element_type"]] for element in static_data['elements']}
-    return player_position_map
 
 
 def make_position_to_player_ids_list_map(player_position_map: dict) -> tuple[dict[int, int], dict[int, int], dict[int, int], dict[int, int]]:
