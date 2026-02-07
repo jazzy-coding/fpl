@@ -1,5 +1,7 @@
 """Main program entry point for the FPL points sim."""
 
+import logging
+
 from src.DataIngester.get_data import fetch_all_players_data, fetch_static_data
 from src.DataProcessor.process_data import *
 
