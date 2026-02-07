@@ -1,5 +1,5 @@
 """Module responsible for processing FPL data."""
-from typing import List
+from typing import List, Sequence
 import asyncio
 import polars as pl
 
@@ -42,7 +42,7 @@ def extract_player_ids_data(static_data: dict) -> pl.DataFrame:
     return pl.DataFrame(player_info)
 
 
-def extract_detailed_player_data(player_ids: List[int]) -> dict[int, dict]:
+def extract_detailed_player_data(player_ids: List[int]) -> Sequence[tuple[int, dict]]:
     """Run `fetch_all_players_data` safely from sync code and return a pl.DataFrame.
 
     Ensures the coroutine runs either with `asyncio.run()` or inside a fresh thread+loop
