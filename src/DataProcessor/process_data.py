@@ -1,5 +1,6 @@
 """Module responsible for processing FPL data."""
 from typing import List
+import asyncio
 import polars as pl
 
 from src.DataIngester.get_data import fetch_all_players_data, fetch_static_data, PLAYER_URL
@@ -50,8 +51,8 @@ def extract_detailed_player_data(player_ids: List[int]) -> pl.DataFrame:
     Returns:
         pl.DataFrame: Processed DataFrame containing detailed player data.
     """
-    detailed_player_data = await fetch_all_players_data(player_ids)
-    return pl.DataFrame(detailed_player_data)
+    data = asyncio.run(fetch_all_players_data(player_ids))
+    return pl.DataFrame(data)
 
 
 def extract_player_position_mapping(static_data: dict) -> dict[str, str]:
