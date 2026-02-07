@@ -15,4 +15,5 @@ dependencies = [
     "requests>=2.32.5",
     "ruff>=0.14.14",
     "scikit-learn>=1.8.0",
+    "spyder-kernels>=3.1.2",
 ]

@@ -2,7 +2,7 @@
 from typing import List
 import polars as pl
 
-from src.DataIngester.get_data import fetch_all_players_data, PLAYER_URL
+from src.DataIngester.get_data import fetch_all_players_data, fetch_static_data, PLAYER_URL
 
 FDR_MULTIPLIER_MAP = {
     1: 1.2,
@@ -238,3 +238,27 @@ def preprocess_match_data(matches_df: pl.DataFrame, player_ids_df: pl.DataFrame,
     # unfinished - continue from here
 
     return matches_df
+
+
+def run_full_player_processing() -> pl.DataFrame:
+    """Run the full player data processing pipeline.
+
+    Returns:
+        pl.DataFrame: Final processed DataFrame containing player data.
+    """
+    static_data = fetch_static_data()
+    teams_df = extract_teams_data(static_data)
+    player_ids_df = extract_player_ids_data(static_data)
+    player_name_map = extract_player_name_map(player_ids_df)
+    upcoming_fixtures_df = extract_upcoming_fixtures(static_data)
+    fdr_dict = calculate_fdr(upcoming_fixtures_df, player_name_map, FDR_MULTIPLIER_MAP)
+
+    player_ids = player_ids_df["id"].to_list()
+    detailed_player_data_df = extract_detailed_player_data(player_ids)
+
+    played_fixtures_data = unpack_played_fixtures([(row["player_id"], row) for row in detailed_player_data_df.select(["player_id", "history"]).to_dicts()])
+    played_fixtures_df = pl.DataFrame(played_fixtures_data)
+
+    preprocessed_matches_df = preprocess_match_data(played_fixtures_df, player_ids_df, teams_df, gw_played=5)
+
+    return preprocessed_matches_df
