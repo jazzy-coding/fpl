@@ -2,7 +2,9 @@
 from typing import List, Sequence
 import asyncio
 from collections import defaultdict
+
 import polars as pl
+import numpy as np
 
 from src.DataIngester.get_data import fetch_all_players_data, fetch_static_data, PLAYER_URL
 
@@ -384,3 +386,87 @@ def ensure_unique(
     str_idx_map = {pid: i for i, pid in enumerate(str_player_ids)}
 
     return gk_idx_map, def_idx_map, mid_idx_map, str_idx_map
+
+
+def return_final_position_indices(index_map: dict[int, int], positional_data: pl.DataFrame) -> np.ndarray:
+    """Return a DataFrame with player IDs and their corresponding position indices.
+
+    Args:
+        index_map (dict[int, int]): Mapping of player IDs to their corresponding indices.
+        positional_data (pl.DataFrame): DataFrame containing match data for a specific position.
+
+    Returns:
+        np.ndarray: Array containing player IDs and their corresponding position indices.
+    """
+    return np.array([index_map[int(pid)] for pid in positional_data["player_id"].to_list()])
+
+
+def prepare_obs_arrays(df: pl.DataFrame, idx_map: dict[int, int]) -> dict[str, np.ndarray]:
+    """Prepare observed data arrays for model training.
+
+    Args:
+        df (pl.DataFrame): DataFrame containing match data for a specific position.
+        idx_map (dict[int, int]): Mapping of player IDs to their corresponding indices.
+
+    Returns:
+        dict[str, np.ndarray]: Dictionary containing observed data arrays for model training.
+    """
+    # Filter for this position
+    pos_df = df.filter(pl.col("player_id").is_in(list(idx_map.keys())))
+
+    # Map player_id → hierarchical row index
+    player_idx = np.array([idx_map[int(pid)] for pid in pos_df["player_id"].to_list()])
+
+    # Observed data arrays
+    minutes = pos_df["minutes"].to_numpy()
+    goals = pos_df["goals_scored"].to_numpy()
+    assists = pos_df["assists"].to_numpy()
+    dc = pos_df["defensive_contribution"].to_numpy()
+    gc = pos_df["goals_conceded"].to_numpy()
+    yc = pos_df["yellow_cards"].to_numpy()
+    rc = pos_df["red_cards"].to_numpy()
+    saves = pos_df["saves"].to_numpy()  # only for GKs
+
+    return {
+        "player_idx": player_idx,
+        "minutes": minutes,
+        "goals": goals,
+        "assists": assists,
+        "dc": dc,
+        "gc": gc,
+        "yc": yc,
+        "rc": rc,
+        "saves": saves
+    }
+
+
+def compute_minutes_beta_params(df: pl.DataFrame) -> dict[int, tuple[int, int, int, int]]:
+    """Compute Beta distribution parameters for minutes played for each player.
+
+    Args:
+        df: Polars DataFrame filtered for a single position
+    
+    Returns: 
+        dict: player_id -> (alpha_0, beta_0, alpha_60, beta_60)
+    """
+    params = {}
+
+    for row in df.group_by("player_id").agg([
+        pl.col("minutes").count().alias("games_played"),
+        (pl.col("minutes") > 0).sum().alias("games_played_gt0"),
+        (pl.col("minutes") >= 60).sum().alias("games_played_ge60")
+    ]).to_dicts():
+        pid = row["player_id"]
+
+        # Beta prior for appearing at all
+        alpha_0 = row["games_played_gt0"] + 1
+        beta_0  = (row["games_played"] - row["games_played_gt0"]) + 1
+
+        # Beta prior for >=60 mins conditional on playing
+        alpha_60 = row["games_played_ge60"] + 1
+        beta_60  = (row["games_played_gt0"] - row["games_played_ge60"]) + 1
+
+        params[pid] = (alpha_0, beta_0, alpha_60, beta_60)
+
+    return params
+
