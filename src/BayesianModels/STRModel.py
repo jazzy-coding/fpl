@@ -85,6 +85,6 @@ def fit_str_model(
             observed=red_cards,
         )
 
-        str_trace = pm.sample(2000, tune=2000, cores=1, target_accept=0.95)
+        str_trace = pm.sample(2000, tune=2000, target_accept=0.95)
 
     return str_trace

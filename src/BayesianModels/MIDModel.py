@@ -81,6 +81,6 @@ def fit_mid_model(
             "red_cards", mu=np.exp(lambda_rc[player_idx]) * exposure, observed=red_cards
         )
 
-        mid_trace = pm.sample(2000, tune=2000, cores=1, target_accept=0.95)
+        mid_trace = pm.sample(2000, tune=2000, target_accept=0.95)
 
     return mid_trace
